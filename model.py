@@ -12,6 +12,7 @@ import math
 from sklearn.model_selection import KFold, cross_val_predict
 from sklearn.model_selection import KFold
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def load_and_split_data(file_path, target_column, test_size=0.2, random_state=42):
@@ -39,6 +40,28 @@ def knn_cluster(X_train, X_test, y_train, y_test, top_features, n_clusters=15):
     X_test_clustered = kmeans.predict(X_test[top_features])
     return X_train_clustered, X_test_clustered
 
+def hyperparameter_tune_find_optimal_k(X_train, X_test, y_train, y_test, top_features, k_values):
+    mae_values = [] 
+    best_k = None
+    best_mae = float('inf')  
+
+    for k in k_values:
+        X_train_clustered, X_test_clustered = knn_cluster(X_train, X_test, y_train, y_test, top_features, n_clusters=k)
+        predictions = regression_per_cluster(X_train, X_train_clustered, X_test, X_test_clustered, y_train, top_features)
+        mae = mean_absolute_error(y_test, predictions)
+        mae_values.append(mae)  
+        if mae < best_mae:
+            best_mae = mae
+            best_k = k
+
+    print(f"Best k: {best_k} with Mean Absolute Error (MAE): {best_mae}")
+    plt.figure(figsize=(8, 6))
+    plt.plot(k_values, mae_values, marker='o')
+    plt.xlabel('Number of Clusters (k)')
+    plt.ylabel('Mean Absolute Error (MAE)')
+    plt.title('MAE vs. Number of Clusters (k)')
+    plt.grid(True)
+    plt.show()
 
 def regression_per_cluster(X_train, X_train_clustered, X_test, X_test_clustered, y_train, top_features):
     unique_clusters = np.unique(X_test_clustered) 
@@ -85,17 +108,25 @@ def main():
     print(correlation_scores)
     top_features = [x[0] for x in correlation_scores[:12]] 
     
-    X_train_clustered, X_test_clustered = knn_cluster(X_train, X_test, y_train, y_test, top_features)
+    X_train_clustered, X_test_clustered = knn_cluster(X_train, X_test, y_train, y_test, top_features, n_clusters= 10)
     print(X_train_clustered)
     print(X_test_clustered)
     
     predictions = regression_per_cluster(X_train, X_train_clustered, X_test,X_test_clustered, y_train, top_features)
     print(predictions)  
-
+    k_values = [3, 5, 8, 10, 15] 
+    hyperparameter_tune_find_optimal_k(X_train, X_test, y_train, y_test, top_features, k_values)
     mae = mean_absolute_error(y_test, predictions)
     print(f"Mean Absolute Error (MAE): {mae}")
+    mse = mean_squared_error(y_test, predictions)
+    print(f"Mean Squared Error (MSE): {mse}")
+    rmse = np.sqrt(mse)
+    print(f"Root Mean Squared Error (RMSE): {rmse}")
+    cv = np.std(y_test) / np.mean(y_test)
+    print(f"Coefficient of Variation (CV): {cv}")
+    r_squared = r2_score(y_test, predictions)
+    print(f"R-squared: {r_squared}")
 
 
 if __name__ == "__main__":
     main()
-
